@@ -8,9 +8,9 @@ use Smartling\BeaverBuilder\Bootloader;
  * Author: Smartling
  * Author URI: https://www.smartling.com
  * Plugin Name: Smartling-Beaver Builder
- * Version: 2.8.0
+ * Version: 2.11.0
  * Description: Extend Smartling Connector functionality to support Beaver Builder
- * SupportedSmartlingConnectorVersions: 2.8-2.8
+ * SupportedSmartlingConnectorVersions: 2.9-2.11
  * SupportedPluginVersions: 2.4-2.4
  */
 
@@ -27,8 +27,7 @@ if ((defined('DOING_CRON') && true === DOING_CRON) || is_admin()) {
             (new Bootloader(__FILE__, $di))->run();
         } catch (\RuntimeException $e) {
             add_action('all_admin_notices', static function () use ($e) {
-                $text = esc_html($e->getMessage());
-                echo "<div class=\"error\"><p>$text</p></div>";
+                echo "<div class=\"error\"><p>" . esc_html($e->getMessage()) . "</p></div>";
             });
         }
     });

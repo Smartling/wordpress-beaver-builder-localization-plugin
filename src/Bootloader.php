@@ -3,9 +3,11 @@
 namespace Smartling\BeaverBuilder;
 
 use Smartling\Helpers\ArrayHelper;
+use Smartling\Helpers\MetaFieldProcessor\MetaFieldProcessorManager;
 use Smartling\Vendor\Symfony\Component\DependencyInjection\ContainerBuilder;
 
-class Bootloader {
+class Bootloader
+{
     private const PLUGIN_NAME = 'Plugin Name';
     private const SUPPORTED_PLUGIN_VERSIONS = 'SupportedPluginVersions';
     private const SUPPORTED_SMARTLING_CONNECTOR_VERSIONS = 'SupportedSmartlingConnectorVersions';
@@ -30,6 +32,7 @@ class Bootloader {
         }
 
         require_once __DIR__ . DIRECTORY_SEPARATOR . 'BeaverBuilderFieldsFilterHelper.php';
+        require_once __DIR__ . DIRECTORY_SEPARATOR . 'BeaverBuilderMediaProcessor.php';
         $this->di = $di;
     }
 
@@ -80,5 +83,10 @@ class Bootloader {
             $this->di->get('manager.settings'),
             $this->di->get('acf.dynamic.support'),
         ));
+        /**
+         * @var MetaFieldProcessorManager $metaFieldProcessorManager
+         */
+        $metaFieldProcessorManager = $this->di->get('meta-field.processor.manager');
+        $metaFieldProcessorManager->registerProcessor(new BeaverBuilderMediaProcessor());
     }
 }
