@@ -10,9 +10,10 @@ use Smartling\Submissions\SubmissionEntity;
 class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
 {
     private const DATA_FIELD_NAME = '_fl_builder_data';
-    public const META_FIELD_NAME = 'meta/' . self::DATA_FIELD_NAME;
-    public const META_NODE_PATH_NAME_REGEX = self::META_FIELD_NAME . '/[0-9a-f]{13}/';
+    private const META_FIELD_NAME = 'meta/' . self::DATA_FIELD_NAME;
+    private const META_NODE_PATH_NAME_REGEX = self::META_FIELD_NAME . '/[0-9a-f]{13}/';
     public const META_NODE_SETTINGS_NAME_REGEX = self::META_NODE_PATH_NAME_REGEX . 'settings/';
+    private const META_NODE_SETTINGS_CHILD_NODE_REGEX = self::META_NODE_SETTINGS_NAME_REGEX . '.+/';
 
     public function processStringsBeforeEncoding(
         SubmissionEntity $submission,
@@ -20,6 +21,10 @@ class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
         string $strategy = self::FILTER_STRATEGY_UPLOAD
     ): array
     {
+        if (!array_key_exists(self::DATA_FIELD_NAME, $data['meta'] ?? [])) {
+            $this->getLogger()->debug("No Beaver Builder data found while processing strings for submissionId={$submission->getId()}, sourceId={$submission->getSourceId()}");
+            return parent::processStringsBeforeEncoding($submission, $data, $strategy);
+        }
         ContentSerializationHelper::prepareFieldProcessorValues($this->getSettingsManager(), $submission);
         $data = $this->prepareSourceData($data);
         $data = $this->flattenArray($data);
@@ -39,8 +44,10 @@ class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
             "{$base}list_items/\\d+/"
         ];
         $remove = array_merge($this->flattenArray(Bootstrap::getContainer()->get('content-serialization.helper')->getRemoveFields()), [
-            '^meta/_fl_builder_history_position',
+            '^meta/_fl_builder_data_settings/css$',
+            '^meta/_fl_builder_data_settings/js$',
             '^meta/_fl_builder_draft',
+            '^meta/_fl_builder_history_position',
             '^meta/_fl_builder_history_state',
             '^' . self::META_NODE_PATH_NAME_REGEX . 'node$',
             '^' . self::META_NODE_PATH_NAME_REGEX . 'parent$',
@@ -56,7 +63,9 @@ class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'feed_url$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'export$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '(heading|content)_typography',
+            '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*_?id$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'import$',
+            '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*_?type',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'typography',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'layout',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'list_(?!items)',
@@ -69,13 +78,26 @@ class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'show_captions?$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*size[^/]*$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'source$',
+            '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*_?style$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*tag[^/]*$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'title_hover$',
-            '^' . self::META_NODE_SETTINGS_NAME_REGEX . 'type$',
+            '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*_?transition',
+            '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*_?type$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*visibility[^/]*$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*width[^/]*$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*bg_[^/]+$',
             '^' . self::META_NODE_SETTINGS_NAME_REGEX . '[^/]*ss_[^/]+$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?color$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_family$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?height$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?layout$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?position$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?style$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?target$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?tag$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?transition$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?type$',
+            '^' . self::META_NODE_SETTINGS_CHILD_NODE_REGEX . '[^/]*_?unit$',
         ]);
         foreach ($heads as $head) {
             foreach ([
@@ -113,6 +135,8 @@ class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
             }
             $result[$key] = $value;
         }
+
+        unset($result['entity/post_content']);
 
         return $result;
     }
@@ -159,14 +183,16 @@ class BeaverBuilderFieldsFilterHelper extends FieldsFilterHelper
     private function inflateArray(array $data, array $translated): array
     {
         $result = $this->structurizeArray($translated, self::ARRAY_DIVIDER);
-        foreach ($result['meta'][self::DATA_FIELD_NAME] as $key => $value) {
+        foreach ($result['meta'][self::DATA_FIELD_NAME] ?? [] as $key => $value) {
             $result['meta'][self::DATA_FIELD_NAME][$key] = $this->buildData(
                 $data[$key],
                 $value,
                 ''
             );
         }
-        $result['meta']['_fl_builder_data_settings'] = $this->toStdClass($result['meta']['_fl_builder_data_settings']);
+        if (array_key_exists('_fl_builder_data_settings', $result['meta'] ?? [])) {
+            $result['meta']['_fl_builder_data_settings'] = $this->toStdClass($result['meta']['_fl_builder_data_settings']);
+        }
         return $result;
     }
 
