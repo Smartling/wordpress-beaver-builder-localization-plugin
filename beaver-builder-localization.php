@@ -8,7 +8,7 @@ use Smartling\BeaverBuilder\Bootloader;
  * Author: Smartling
  * Author URI: https://www.smartling.com
  * Plugin Name: Smartling-Beaver Builder
- * Version: 2.11.0
+ * Version: 2.11.1
  * Description: Extend Smartling Connector functionality to support Beaver Builder
  * SupportedSmartlingConnectorVersions: 2.9-2.11
  * SupportedPluginVersions: 2.4-2.4
